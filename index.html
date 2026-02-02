@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Salary Take-Home Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f4f6fb;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .calculator {
+      max-width: 420px;
+      margin: auto;
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.08);
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      font-weight: 600;
+    }
+
+    input, select, button {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 15px;
+    }
+
+    button {
+      margin-top: 20px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #f1f5ff;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+      font-weight: 500;
+    }
+
+    .highlight {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+  </style>
+</head>
+<body>
+
+<div class="calculator">
+  <h2>💰 Salary Calculator</h2>
+
+  <label>Annual CTC (₹)</label>
+  <input id="ctc" type="number" placeholder="e.g. 1800000" />
+
+  <label>Tax Regime</label>
+  <select id="taxRegime">
+    <option value="NEW">New Regime</option>
+    <option value="OLD">Old Regime</option>
+  </select>
+
+  <label>City Type</label>
+  <select id="metro">
+    <option value="yes">Metro</option>
+    <option value="no">Non-Metro</option>
+  </select>
+
+  <button onclick="onCalculate()">Calculate</button>
+
+  <div class="result" id="result" style="display:none">
+    <div class="row highlight">
+      <span>Monthly Take-Home</span>
+      <span id="takeHome"></span>
+    </div>
+    <hr />
+    <div class="row">
+      <span>Monthly Gross</span>
+      <span id="gross"></span>
+    </div>
+    <div class="row">
+      <span>Monthly Tax</span>
+      <span id="tax"></span>
+    </div>
+    <div class="row">
+      <span>Monthly PF</span>
+      <span id="pf"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+function onCalculate() {
+  const ctc = Number(document.getElementById("ctc").value);
+  const taxRegime = document.getElementById("taxRegime").value;
+  const isMetro = document.getElementById("metro").value === "yes";
+
+  if (!ctc) return alert("Please enter CTC");
+
+  const data = calculateSalary({ ctc, taxRegime, isMetro });
+
+  document.getElementById("result").style.display = "block";
+  document.getElementById("takeHome").innerText = format(data.monthly.takeHome);
+  document.getElementById("gross").innerText = format(data.monthly.gross);
+  document.getElementById("tax").innerText = format(data.monthly.tax);
+  document.getElementById("pf").innerText = format(data.monthly.pf);
+}
+
+/* ================= SALARY ENGINE ================= */
+
+function calculateSalary({ ctc, taxRegime, isMetro }) {
+
+  const BASIC = 0.40;
+  const PF = 0.12;
+  const GRATUITY = 0.0481;
+  const STANDARD_DEDUCTION = 50000;
+
+  const basic = ctc * BASIC;
+  const employerPF = basic * PF;
+  const employeePF = employerPF;
+  const gratuity = basic * GRATUITY;
+
+  const gross = ctc - employerPF - gratuity;
+
+  let taxableIncome = Math.max(gross - STANDARD_DEDUCTION, 0);
+
+  let tax = taxRegime === "OLD"
+    ? calculateOldTax(taxableIncome)
+    : calculateNewTax(taxableIncome);
+
+  tax += tax * 0.04; // cess
+
+  const annualTakeHome = gross - employeePF - tax;
+
+  return {
+    monthly: {
+      gross: Math.round(gross / 12),
+      tax: Math.round(tax / 12),
+      pf: Math.round(employeePF / 12),
+      takeHome: Math.round(annualTakeHome / 12)
+    }
+  };
+}
+
+function calculateNewTax(income) {
+  const slabs = [
+    [300000, 0],
+    [300000, 0.05],
+    [300000, 0.10],
+    [300000, 0.15],
+    [300000, 0.20],
+    [Infinity, 0.30]
+  ];
+
+  let tax = 0;
+  for (const [limit, rate] of slabs) {
+    if (income <= 0) break;
+    const amt = Math.min(income, limit);
+    tax += amt * rate;
+    income -= amt;
+  }
+  return tax;
+}
+
+function calculateOldTax(income) {
+  if (income <= 250000) return 0;
+  if (income <= 500000) return (income - 250000) * 0.05;
+  if (income <= 1000000)
+    return 12500 + (income - 500000) * 0.20;
+  return 112500 + (income - 1000000) * 0.30;
+}
+
+function format(num) {
+  return "₹" + num.toLocaleString("en-IN");
+}
+</script>
+
+</body>
+</html>
