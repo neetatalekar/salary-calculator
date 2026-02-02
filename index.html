@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Salary Take-Home Calculator</title>
+  <title>Free Salary Breakup & Take Home Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <meta name="description" content="Free Salary Breakup & Take Home Calculator">
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont;
@@ -74,48 +74,49 @@
 </head>
 <body>
 
-<div class="calculator">
-  <h2>💰 Salary Calculator</h2>
+<div class="card">
+  <h2>💼 Salary Breakup Builder</h2>
 
   <label>Annual CTC (₹)</label>
-  <input id="ctc" type="number" placeholder="e.g. 1800000" />
+  <input id="ctc" type="number" placeholder="1800000" />
 
-  <label>Tax Regime</label>
-  <select id="taxRegime">
-    <option value="NEW">New Regime</option>
-    <option value="OLD">Old Regime</option>
-  </select>
+  <label>Basic Salary (%)</label>
+  <input id="basicPercent" type="number" value="40" />
 
-  <label>City Type</label>
-  <select id="metro">
-    <option value="yes">Metro</option>
-    <option value="no">Non-Metro</option>
-  </select>
+  <label>HRA (% of Basic)</label>
+  <input id="hraPercent" type="number" value="50" />
 
-  <button onclick="onCalculate()">Calculate</button>
+  <label>Employer PF (% of Basic)</label>
+  <input id="pfPercent" type="number" value="12" />
 
-  <div class="result" id="result" style="display:none">
-    <div class="row highlight">
-      <span>Monthly Take-Home</span>
-      <span id="takeHome"></span>
-    </div>
-    <hr />
-    <div class="row">
-      <span>Monthly Gross</span>
-      <span id="gross"></span>
-    </div>
-    <div class="row">
-      <span>Monthly Tax</span>
-      <span id="tax"></span>
-    </div>
-    <div class="row">
-      <span>Monthly PF</span>
-      <span id="pf"></span>
-    </div>
-  </div>
+  <label>Gratuity (% of Basic)</label>
+  <input id="gratuityPercent" type="number" value="4.81" />
+
+  <h3 style="margin-top:20px;">➕ Other Allowances (% of CTC)</h3>
+  <div id="allowances"></div>
+
+  <button onclick="addAllowance()">Add Allowance</button>
+
+  <button style="margin-top:15px;" onclick="calculate()">Calculate</button>
+
+  <div class="result" id="result" style="display:none;"></div>
 </div>
 
 <script>
+let allowanceCount = 0;
+
+function addAllowance() {
+  allowanceCount++;
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = `
+    <input placeholder="Allowance Name" id="name_${allowanceCount}">
+    <input type="number" placeholder="% of CTC" id="percent_${allowanceCount}">
+  `;
+  document.getElementById("allowances").appendChild(div);
+}
+
+
 function onCalculate() {
   const ctc = Number(document.getElementById("ctc").value);
   const taxRegime = document.getElementById("taxRegime").value;
@@ -199,6 +200,74 @@ function calculateOldTax(income) {
 function format(num) {
   return "₹" + num.toLocaleString("en-IN");
 }
+
+
+function calculate() {
+  const ctc = Number(ctcInput());
+  const basicPct = pct("basicPercent");
+  const hraPct = pct("hraPercent");
+  const pfPct = pct("pfPercent");
+  const gratuityPct = pct("gratuityPercent");
+
+  const basic = ctc * basicPct;
+  const hra = basic * hraPct;
+  const employerPF = basic * pfPct;
+  const gratuity = basic * gratuityPct;
+
+  let allowanceTotal = 0;
+  let allowanceBreakup = [];
+
+  for (let i = 1; i <= allowanceCount; i++) {
+    const name = document.getElementById(`name_${i}`)?.value;
+    const percent = Number(document.getElementById(`percent_${i}`)?.value);
+    if (name && percent) {
+      const amount = ctc * (percent / 100);
+      allowanceTotal += amount;
+      allowanceBreakup.push({ name, amount });
+    }
+  }
+
+  // 🔥 Special Allowance (balancer)
+  const specialAllowance =
+    ctc - (basic + hra + employerPF + gratuity + allowanceTotal);
+
+  const gross =
+    basic + hra + specialAllowance + allowanceTotal;
+
+  const employeePF = employerPF;
+
+  const takeHomeAnnual = gross - employeePF;
+
+  document.getElementById("result").style.display = "block";
+  document.getElementById("result").innerHTML = `
+    <strong>Annual Take Home:</strong> ₹${fmt(takeHomeAnnual)}<br/>
+    <strong>Monthly Take Home:</strong> ₹${fmt(takeHomeAnnual / 12)}<hr/>
+    <strong>Basic:</strong> ₹${fmt(basic)}<br/>
+    <strong>HRA:</strong> ₹${fmt(hra)}<br/>
+    <strong>Special Allowance:</strong> ₹${fmt(specialAllowance)}<br/>
+    ${allowanceBreakup.map(a => `<strong>${a.name}:</strong> ₹${fmt(a.amount)}`).join("<br/>")}
+    <hr/>
+    <strong>Employer PF:</strong> ₹${fmt(employerPF)}<br/>
+    <strong>Gratuity:</strong> ₹${fmt(gratuity)}
+  `;
+}
+
+function ctcInput() {
+  return document.getElementById("ctc").value;
+}
+
+function pct(id) {
+  return Number(document.getElementById(id).value) / 100;
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString("en-IN");
+}
+</script>
+
+</body>
+</html>
+
 </script>
 
 </body>
